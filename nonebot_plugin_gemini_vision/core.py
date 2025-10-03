@@ -106,14 +106,7 @@ async def chat_with_gemini(
         else:
             parts.append({"text": prompt})
         contents.extend(conversation.history)
-        generate_content_config = types.GenerateContentConfig(
-            response_modalities=(["Text"]), top_p=0.95
-        )
         if image_list:
-            generate_content_config = types.GenerateContentConfig(
-                response_modalities=(["Text", "Image"]),
-                top_p=0.95,
-            )
             for img_data in image_list:
                 parts.append(
                     {
@@ -124,6 +117,10 @@ async def chat_with_gemini(
                     }
                 )
         contents.append({"role": "user", "parts": parts})
+        generate_content_config = types.GenerateContentConfig(
+            response_modalities=(["Text", "Image"]),
+            top_p=0.85,
+        )
         logger.debug(f"Gemini对话内容: {contents}")
         client = get_client()
         response = await client.aio.models.generate_content(
