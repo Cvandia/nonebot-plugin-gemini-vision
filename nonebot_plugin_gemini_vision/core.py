@@ -32,7 +32,9 @@ class ConversationHistory(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def add_message(self, role: Literal["user", "model"], message: types.ContentListUnionDict):
+    def add_message(
+        self, role: Literal["user", "model"], message: types.ContentListUnionDict
+    ):
         """添加消息到会话历史"""
         self.history.append({"role": role, "parts": message})
         self.timestamp = time.time()
@@ -54,7 +56,9 @@ conversations: dict[str, ConversationHistory] = {}
 
 def get_conversation(user_id: str) -> ConversationHistory:
     """获取或创建会话历史记录"""
-    if user_id not in conversations or (conversations[user_id].timestamp + 600 < time.time()):
+    if user_id not in conversations or (
+        conversations[user_id].timestamp + 600 < time.time()
+    ):
         conversations[user_id] = ConversationHistory()
     return conversations[user_id]
 
@@ -95,13 +99,21 @@ async def chat_with_gemini(
         return GeminiResponse(success=False, error="未配置Gemini API密钥")
     try:
         conversation = get_conversation(user_id)
-        parts = []
         contents = []
-        if getattr(config, "gemini_preset", ""):
-            contents.append({"role": "system", "parts": [{"text": config.gemini_preset}]})
+        parts = []
+        if config.gemini_preset:
+            parts.append({"text": config.gemini_preset + "\n" + prompt})
+        else:
+            parts.append({"text": prompt})
         contents.extend(conversation.history)
-        parts.append({"text": prompt})
+        generate_content_config = types.GenerateContentConfig(
+            response_modalities=(["Text"]), top_p=0.95
+        )
         if image_list:
+            generate_content_config = types.GenerateContentConfig(
+                response_modalities=(["Text", "Image"]),
+                top_p=0.95,
+            )
             for img_data in image_list:
                 parts.append(
                     {
@@ -112,7 +124,7 @@ async def chat_with_gemini(
                     }
                 )
         contents.append({"role": "user", "parts": parts})
-        generate_content_config = types.GenerateContentConfig(response_modalities=(["Text", "Image"]), top_p=0.95)
+        logger.debug(f"Gemini对话内容: {contents}")
         client = get_client()
         response = await client.aio.models.generate_content(
             model=config.gemini_model,
