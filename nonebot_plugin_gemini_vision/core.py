@@ -96,6 +96,10 @@ async def chat_with_gemini(
     try:
         conversation = get_conversation(user_id)
         parts = []
+        contents = []
+        if getattr(config, "gemini_preset", ""):
+            contents.append({"role": "system", "parts": [{"text": config.gemini_preset}]})
+        contents.extend(conversation.history)
         parts.append({"text": prompt})
         if image_list:
             for img_data in image_list:
@@ -107,11 +111,12 @@ async def chat_with_gemini(
                         }
                     }
                 )
+        contents.append({"role": "user", "parts": parts})
         generate_content_config = types.GenerateContentConfig(response_modalities=(["Text", "Image"]), top_p=0.95)
         client = get_client()
         response = await client.aio.models.generate_content(
             model=config.gemini_model,
-            contents=[*conversation.history, {"parts": parts, "role": "user"}],
+            contents=contents,
             config=generate_content_config,
         )
         message = UniMessage()
